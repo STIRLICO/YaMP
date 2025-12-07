@@ -1,16 +1,10 @@
 PROGRAM Test
 INTEGER a, b, c
 REAL x, y
-a = 12
-A1
-REALa
-@ # $ 0
-012
-01.1
-
+a = 4556
 b = 5
-c = a + b
+c = a + (b + 6)
 x = 3.02
 y = x - 2.71
-CALL Print(a, b, c, x, y)
+CALL Print (a, b, c, x, y)
 END Test

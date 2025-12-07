@@ -22,25 +22,29 @@ private:
     std::string lexeme;   //лексема
     TokenType type;       //тип
     int index;            //индекс в хэш-таблице
+    int line;             //номер строки во входном файле
 
 public:
 
     //Конструкторы
-    Token() : lexeme(""), type(TT_UNKNOWN), index(-1) {}
+    Token() : lexeme(""), type(TT_UNKNOWN), index(-1), line(1) {}
 
-    Token(const std::string& lex, TokenType t, int idx = -1)
-        : lexeme(lex), type(t), index(idx) {
+    Token(const std::string& lex, TokenType t, int idx = -1, int ln = 1)
+        : lexeme(lex), type(t), index(idx), line(ln) {
     }
 
     //Геттеры
     std::string getLexeme() const { return lexeme; }
     TokenType getType() const { return type; }
     int getIndex() const { return index; }
+    int getLine() const { return line; }
+
 
     //Сеттеры
     void setLexeme(const std::string& lex) { lexeme = lex; }
     void setType(TokenType t) { type = t; }
     void setIndex(int idx) { index = idx; }
+    void setLine(int ln) { line = ln; }
 
     //Преобразование типа в строку для вывода
     std::string typeToString() const {
