@@ -40,14 +40,10 @@ Program
              'a'
            '+'
         SimpleExpr
-             '('
-          Expr
-            SimpleExpr
-                 'b'
-               '+'
-            SimpleExpr
-                 '6'
-             ')'
+             'b'
+           '+'
+        SimpleExpr
+             'b'
     Op
          'x'
          '='
@@ -89,5 +85,5 @@ Program
          ')'
   End
        'END'
-SYNTAX ERROR at line 10: Expected identifier after END (unexpected end of file)
-Parsing completed with 1 error(s)
+       'Test'
+Parsing completed successfully!

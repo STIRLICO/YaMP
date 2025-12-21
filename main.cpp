@@ -1,5 +1,6 @@
 #include "Lexer.h"
 #include "Synt.h"
+#include "Semantic.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -8,6 +9,7 @@ int main() {
     std::string inFile = "input.txt";
     std::string lexerOutFile = "output.txt";
     std::string parserOutFile = "output2.txt";
+    std::string semanticOutFile = "output3.txt";
 
     //Лексический анализ
     Lexer lexer(inFile, lexerOutFile);
@@ -29,7 +31,17 @@ int main() {
     Synt parser(validTokens, parserOutput);
     parser.synt();
 
-    std::cout << "Lexical output written to " << lexerOutFile << "\n";
-    std::cout << "Synt output written to " << parserOutFile << "\n";
+    //Получаем дерево
+    Node* astRoot = parser.getTree();
 
+    //Семантический анализ
+    std::ofstream semanticOutput(semanticOutFile);
+    SemanticAnalyzer semanticAnalyzer(astRoot, semanticOutput);
+    semanticAnalyzer.analyze();
+
+    std::cout << "Lexical output written to " << lexerOutFile << "\n";
+    std::cout << "Parser output written to " << parserOutFile << "\n";
+    std::cout << "Semantic output written to " << semanticOutFile << "\n";
+
+    return 0;
 }

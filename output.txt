@@ -6,7 +6,6 @@ PLUS | + | 44
 COMMA | , | 45
 MINUS | - | 46
 INTEGER | 5 | 54
-INTEGER | 6 | 55
 ASSIGN | = | 62
 KEYWORD | REAL | 65
 IDENTIFIER | a | 98
