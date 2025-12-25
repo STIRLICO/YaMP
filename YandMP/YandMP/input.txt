@@ -1,0 +1,10 @@
+PROGRAM Test
+INTEGER a, b, c
+REAL x, y
+a = 4556
+b = 5
+c = a + b + b
+x = 3.02
+y = x - 2.71
+CALL Print (a, b, c, x, y)
+END Test
