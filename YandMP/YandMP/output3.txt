@@ -4,9 +4,12 @@ REAL x y 3 DECL
 a 4556 =
 b 5 =
 c a b b + + =
-x 3.02 =
+x 3.02 1 + =
 y x 2.71 - =
 Print a b c x y 6 CALL
 Test END
 
-Semantic analysis completed successfully!
+ERRORS:
+SEMANTIC ERROR at line 7: Type mismatch. Cannot assign  to REAL variable
+
+Semantic analysis completed with 1 error(s)

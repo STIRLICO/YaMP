@@ -50,6 +50,9 @@ Program
       Expr
         SimpleExpr
              '3.02'
+           '+'
+        SimpleExpr
+             '1'
     Op
          'y'
          '='

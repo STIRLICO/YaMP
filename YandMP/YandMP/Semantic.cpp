@@ -5,14 +5,13 @@
 #include <algorithm>
 
 SemanticAnalyzer::SemanticAnalyzer(Node* root, std::ofstream& outputStream)
-    : astRoot(root), output(outputStream), programName("") {
+    : astRoot(root), output(outputStream), programName(""), varTable(211) {
 }
 
 VarInfo* SemanticAnalyzer::findVar(const std::string& name) {
-    for (auto& symbol : Variables) {
-        if (symbol.name == name) {
-            return &symbol;
-        }
+    int idx = varTable.findIndex(name);
+    if (idx != -1) {
+        return varTable.getValue(idx);
     }
     return nullptr;
 }
@@ -23,14 +22,10 @@ void SemanticAnalyzer::analyze() {
         return;
     }
 
-    //Обработка объявлений переменных
     processDescriptionsNode(astRoot);
-    //Обработка операторов
     processOperatorsNode(astRoot);
-    //Обработка конца программы
     processEndNode(astRoot);
 
-    //Вывод ошибок
     if (!errors.empty()) {
         output << "\nERRORS:\n";
         for (const auto& error : errors) {
@@ -136,7 +131,8 @@ void SemanticAnalyzer::processOpNode(Node* node) {
 }
 
 void SemanticAnalyzer::checkVariableDeclared(const std::string& varName, int line) {
-    if (declaredVariables.find(varName) == declaredVariables.end()) {
+    VarInfo* var = findVar(varName);
+    if (!var) {
         std::stringstream ss;
         ss << "SEMANTIC ERROR at line " << line << ": Variable '" << varName << "' is not declared";
         errors.push_back(ss.str());
@@ -144,7 +140,8 @@ void SemanticAnalyzer::checkVariableDeclared(const std::string& varName, int lin
 }
 
 void SemanticAnalyzer::checkVariableNotRedeclared(const std::string& varName, int line) {
-    if (declaredVariables.find(varName) != declaredVariables.end()) {
+    VarInfo* var = findVar(varName);
+    if (var) {
         std::stringstream ss;
         ss << "SEMANTIC ERROR at line " << line << ": Variable '" << varName << "' is already declared";
         errors.push_back(ss.str());
@@ -200,11 +197,14 @@ void SemanticAnalyzer::processVarList(Node* node, TokenType type) {
             int line = child->lineNumber;
 
             checkVariableNotRedeclared(varName, line);
-            
+
             //Если переменная не была объявлена ранее
-            if (declaredVariables.find(varName) == declaredVariables.end()) {
+            VarInfo* existingVar = findVar(varName);
+            if (!existingVar) {
                 varNames.push_back(varName);
-                declaredVariables.insert(varName);
+                //Добавляем переменную в хэш-таблицу
+                VarInfo info(varName, type, false);
+                varTable.insert(varName, info);
             }
         }
     }
@@ -216,11 +216,6 @@ void SemanticAnalyzer::processVarList(Node* node, TokenType type) {
 
         //Добавляем имена переменных
         for (const auto& varName : varNames) {
-            VarInfo info;
-            info.name = varName;
-            info.type = type;
-            info.initialized = false;
-            Variables.push_back(info);
             declPostfix += " " + varName;
         }
         declPostfix += " " + std::to_string(varNames.size() + 1) + " DECL";
@@ -236,15 +231,15 @@ void SemanticAnalyzer::processAssignment(Node* idNode, Node* exprNode) {
     //Проверка объявления переменной
     checkVariableDeclared(varName, line);
 
-    //Анализ типа выражения
+    // Анализ типа выражения
     std::string postfix;
     TokenType exprType = analyzeExpression(exprNode, postfix);
 
     //Проверка совместимости типов
-    VarInfo* varible = findVar(varName);
-    if (varible) {
-        checkTypeCompatibility(varible->type, exprType, line);
-        varible->initialized = true;
+    VarInfo* variable = findVar(varName);
+    if (variable) {
+        checkTypeCompatibility(variable->type, exprType, line);
+        variable->initialized = true;
         std::string assignmentPostfix = varName + " " + postfix + " =";
         postfixCode.push_back(assignmentPostfix);
         output << assignmentPostfix << "\n";
@@ -287,11 +282,43 @@ TokenType SemanticAnalyzer::analyzeExpression(Node* exprNode, std::string& postf
     //Собираем постфиксную запись выражения
     expressionToPostfix(exprNode, postfix);
 
-    //Определяем тип выражения
+    //Определяем тип выражения и проверяем совместимость типов внутри него
     bool hasReal = false;
-    RealCheck(exprNode, hasReal);
+    bool hasInteger = false;
+    bool isMixed = checkExpressionTypes(exprNode, hasReal, hasInteger);
+
+    if (isMixed) {
+        return TT_UNKNOWN;
+    }
 
     return hasReal ? TT_REAL : TT_INTEGER;
+}
+bool SemanticAnalyzer::checkExpressionTypes(Node* node, bool& hasReal, bool& hasInteger) {
+    if (!node) return false;
+
+    if (node->name == "REAL") {
+        hasReal = true;
+    }
+    else if (node->name == "INTEGER") {
+        hasInteger = true;
+    }
+    else if (node->name == "IDENTIFIER") {
+        VarInfo* symbol = findVar(node->value);
+        if (symbol) {
+            if (symbol->type == TT_REAL) {
+                hasReal = true;
+            }
+            else if (symbol->type == TT_INTEGER) {
+                hasInteger = true;
+            }
+        }
+    }
+
+    for (auto child : node->children) {
+        checkExpressionTypes(child, hasReal, hasInteger);
+    }
+
+    return hasReal && hasInteger;
 }
 
 //Проверка наличия вещественных чисел
@@ -313,21 +340,17 @@ void SemanticAnalyzer::RealCheck(Node* node, bool& hasReal) {
     }
 }
 
-//Проверка, является ли строка оператором
-bool isOperator(const std::string& str) {
-    return str == "+" || str == "-";
-}
-
 //Функция для обхода дерева и построения постфиксной записи
-void SemanticAnalyzer::convertToPostfix(Node* node,std::vector<std::string>& output, std::stack<std::string>& operators) {
-
+void SemanticAnalyzer::convertToPostfix(Node* node, std::vector<std::string>& outputVec,
+    std::stack<std::string>& operators) {
     if (!node) return;
+
     if (node->name == "IDENTIFIER") {
         checkVariableDeclared(node->value, node->lineNumber);
-        output.push_back(node->value);
+        outputVec.push_back(node->value);
     }
     else if (node->name == "INTEGER" || node->name == "REAL") {
-        output.push_back(node->value);
+        outputVec.push_back(node->value);
     }
     else if (node->name == "PLUS") {
         std::string op = "+";
@@ -342,31 +365,32 @@ void SemanticAnalyzer::convertToPostfix(Node* node,std::vector<std::string>& out
     }
     else if (node->name == "RPAREN") {
         while (!operators.empty() && operators.top() != "(") {
-            output.push_back(operators.top());
+            outputVec.push_back(operators.top());
             operators.pop();
         }
-        if (!operators.empty()) operators.pop(); // Удаляем (
+        if (!operators.empty()) operators.pop(); //Удаляем (
     }
 
     for (auto child : node->children) {
-        convertToPostfix(child, output, operators);
+        convertToPostfix(child, outputVec, operators);
     }
 }
 
 void SemanticAnalyzer::expressionToPostfix(Node* exprNode, std::string& result) {
     if (!exprNode) return;
 
-    std::vector<std::string> output;
+    std::vector<std::string> outputVec;
     std::stack<std::string> operators;
 
-    convertToPostfix(exprNode, output, operators);
+    convertToPostfix(exprNode, outputVec, operators);
     while (!operators.empty()) {
-        output.push_back(operators.top());
+        outputVec.push_back(operators.top());
         operators.pop();
     }
-    for (size_t i = 0; i < output.size(); i++) {
+
+    for (size_t i = 0; i < outputVec.size(); i++) {
         if (i > 0) result += " ";
-        result += output[i];
+        result += outputVec[i];
     }
 }
 

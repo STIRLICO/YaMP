@@ -5,6 +5,7 @@ RPAREN | ) | 42
 PLUS | + | 44
 COMMA | , | 45
 MINUS | - | 46
+INTEGER | 1 | 50
 INTEGER | 5 | 54
 ASSIGN | = | 62
 KEYWORD | REAL | 65
